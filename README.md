@@ -73,7 +73,7 @@ For each model, the script runs five experiments using random seeds 0–4. In ea
 2. Trains the model on the chosen dataset.
 3. Evaluates the model by testing its predictions for the target variable $Y$
 4. Estimates the Causal Concept Effect (CaCE) for the concepts of interest.
-5. Computes the correlation and mutual information between the learned confounder representation $Z_C$ and the known latent confounder *(UnCoVAEr only)*
+5. Computes mutual information and disentanglement metrics between the learned latent representations and the provided shortcuts/confounders (for latent-variable models)
 
 *Training is skipped if a model checkpoint exists in the directory already.*
 All hyperparameters can be found in the configuration files.
