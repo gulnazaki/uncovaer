@@ -1,0 +1,74 @@
+model: uncovaer_nfivae
+dataset: morphomnist
+attributes: ["intensity", "width", "slant"]
+shortcuts: ["intensity", "width", "slant", "thickness"]
+transforms: null
+batch_size: 256
+ema: False
+lr: 1e-3
+max_epochs: 400
+patience: 10
+binarize: true
+
+# NFiVAE architecture
+feat_dim: 128
+hidden_dim: 256
+latent_dim: 16  # Unified latent dimension
+nf_dim: 1      # Non-factorized sufficient statistics dimension
+
+# Auxiliary classifiers q(c|x), q(y|c,x) - part of CEVAE loss
+use_aux: true
+aux_weight_c: 1.0
+aux_weight_y: 1.0
+
+# Optional predictors p(c|z), p(y|c,z) for ATE estimation
+use_predictors: true
+predictor_weight_c: 1.0
+predictor_weight_y: 1.0
+
+# Loss weights
+recon_weight: 1.0
+
+# KL annealing
+kl_anneal_start: 0
+kl_anneal_end: 0
+
+# Causal structure (parents for each concept)
+causal_parents: [[], [], []]
+
+# Data configuration
+data_dir: data_confounded_i_by_t
+coefficients: [0.3, 0.2, 0.3, 0.2]
+
+# ATE estimation
+ate_num_samples: 100
+use_aipw: true
+
+# Seeds for multiple runs
+# seeds: [0, 1, 2, 3, 4]
+seeds: [0]
+
+# Output paths
+out_dir: /netdisk/users/morphomnist_experiments_final/results/independent/uncovaer_nfivae_pred
+ckpt_path: /netdisk/users/morphomnist_experiments_final/checkpoints/independent/uncovaer_nfivae_pred
+
+run_sparse_discovery: True      # Lasso/ElasticNet
+run_ci_test_discovery: False     # Conditional independence
+run_causal_discovery: False      # PC/FCI/GES
+
+# Method parameters
+confounder_method: 'lasso'      # 'lasso' or 'elasticnet'
+ci_test_method: 'kci'  # 'partial_corr' or 'kci'
+# Pairwise KCI settings (only used when ci_test_method: 'kci')
+# p-values here are p-values for (conditional) independence.
+# Select confounder pairs where conditioning on treatment increases dependence:
+#   p(CInd(Zi,Zj|C)) < p(Ind(Zi,Zj)) - margin
+# Note: this returns *all* qualifying pairs; there is no ranking/top-k step.
+ci_test_max_latent_dims_pairwise: 32
+ci_test_pairwise_pval_margin: 0.0
+causal_discovery_method: 'pc'   # 'pc', 'fci', or 'ges'
+
+# Shared parameters
+confounder_alpha: 0.05          # Significance level
+
+confounder_regularization: 0.1

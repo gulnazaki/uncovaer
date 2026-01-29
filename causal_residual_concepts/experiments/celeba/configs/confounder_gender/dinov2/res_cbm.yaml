@@ -1,0 +1,24 @@
+model: residual_cbm
+dataset: celeba
+y: "Attractive"
+use_augmentation: true
+batch_size: 512
+ema: false
+lr: 1e-3
+max_epochs: 100
+patience: 5
+binarize: true
+use_aux: true
+feat_dim: 256
+max_epochs: 400
+patience: 5
+seeds: [0, 1, 2, 3, 4]
+residual_dim: 16
+out_dir: /netdisk/users/celeba_experiments_final/results/confounder_gender/dinov2/residual_cbm
+ckpt_path: /netdisk/users/celeba_experiments_final/checkpoints/confounder_gender/dinov2/residual_cbm
+baseline_path: /netdisk/users/celeba_experiments_final/checkpoints/confounder_gender/baselines
+data_dir: /mnt/ceph_rbd/
+use_cached_images: false
+use_dinov2_embeddings: true
+use_synthetic_label: true
+attributes: ["Eyeglasses", "Smiling", "Wearing_Lipstick", "Young"]

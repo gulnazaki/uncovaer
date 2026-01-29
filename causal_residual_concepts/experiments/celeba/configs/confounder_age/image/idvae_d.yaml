@@ -1,0 +1,46 @@
+model: uncovaer
+dataset: celeba
+y: "Attractive"
+use_augmentation: true
+batch_size: 512
+ema: false
+lr: 1e-3
+max_epochs: 100
+patience: 5
+binarize: true
+use_aux: true
+feat_dim: 256
+shared_latent_dim: 11
+latent_per_concept: 0
+t_latent_dim: 11
+y_latent_dim: 11
+style_latent_dim: 0
+hidden_dim: 256
+kl_anneal_start: 0
+kl_anneal_end: 0
+aux_weight_c: 1.0
+aux_weight_y: 1.0
+mim_weight: 0.0
+x_on_c: false
+x_on_y: false
+z_on_c: true
+z_on_y: true
+separate_encoders: true
+separate_prior_encoders: true
+conditional_prior: true
+no_X: false
+no_C: false
+seeds: [0]
+beta: 1.0
+out_dir: /netdisk/users/celeba_experiments_final/results/confounder_age/image/idvae_d_no_kl_separate
+ckpt_path: /netdisk/users/celeba_experiments_final/checkpoints/confounder_age/image/idvae_d_no_kl_separate
+baseline_path: /netdisk/users/celeba_experiments_final/checkpoints/confounder_age/baselines
+attributes: ["Eyeglasses", "Male", "Smiling", "Wearing_Lipstick"]
+shortcuts: ["Young", "Eyeglasses", "Male", "Smiling", "Wearing_Lipstick"]
+# causal_parents: [[], [], [], [1]]
+use_aipw: false
+data_dir: /mnt/ceph_rbd/
+use_cached_images: false
+use_dinov2_embeddings: false
+use_synthetic_label: true
+marginalize_c: false

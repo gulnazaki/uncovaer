@@ -1,0 +1,38 @@
+model: uncovaer
+dataset: morphomnist
+attributes: ["intensity", "width"]
+shortcuts: ["thickness", "slant"]
+transforms: null
+batch_size: 256
+ema: False
+lr: 1e-3
+max_epochs: 400
+patience: 10
+binarize: true
+use_aux: true
+feat_dim: 128
+shared_latent_dim: 16
+latent_per_concept: 0
+style_latent_dim: 0
+hidden_dim: 256
+kl_anneal_start: 0
+kl_anneal_end: 50
+seeds: [0, 1, 2, 3, 4]
+mim_weight: 0.0
+use_adversarial_independence: true
+aux_weight_c: 1.0
+aux_weight_y: 1.0
+x_on_c: false
+x_on_y: false
+z_on_c: true
+z_on_y: true
+conditional_prior: true
+no_X: false
+no_C: false
+data_dir: data_confounded_i_by_ts_or
+coefficients: [0.3, 0.2, 0.3, 0.2]
+out_dir: /netdisk/users/morphomnist_experiments_final/results/independent_multiple/idvae_s
+ckpt_path: /netdisk/users/morphomnist_experiments_final/checkpoints/independent_multiple/idvae_s
+separate_encoders: true
+mfcvae: false
+causal_parents: [[], []]

@@ -1,0 +1,17 @@
+model: image_adjust
+dataset: morphomnist
+attributes: ["intensity", "width"]
+shortcuts: ["intensity", "width", "slant", "thickness"]
+transforms: null
+batch_size: 256
+ema: False
+lr: 1e-3
+max_epochs: 400
+patience: 5
+binarize: true
+feat_dim: 32
+seeds: [0, 1, 2, 3, 4]
+data_dir: data_confounded_i_by_t
+coefficients: [0.4, 0.0, 0.3, 0.3]
+out_dir: /netdisk/users/morphomnist_experiments_final/results/independent_tedvae/image_adjust_32
+ckpt_path: /netdisk/users/morphomnist_experiments_final/checkpoints/independent_tedvae/image_adjust_32
