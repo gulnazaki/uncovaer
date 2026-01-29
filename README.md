@@ -75,5 +75,3 @@ For each model, the script runs five experiments using random seeds 0–4. In ea
 All hyperparameters can be found in the configuration files.
 
 After all five runs, the script aggregates the results and reports the mean and standard deviation across seeds.
-
-Quantitative results can be found in `out_dir`/results.json, while qualitative results (counterfactuals) can be found in `out_dir`/counterfactuals_{id, ood}_SEED/
