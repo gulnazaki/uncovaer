@@ -14,9 +14,6 @@ from models.utils import (
     generate_early_stopping_callback,
     generate_ema_callback,
     compute_latent_confounder_metrics,
-    # analyze_latents,
-    # analyze_latents_simple,
-    # analyze_latents_flat_shortcut
 )
 from models.aipw_utils import aipw_crossfit
 

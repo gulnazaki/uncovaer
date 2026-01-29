@@ -8,22 +8,6 @@ CONCEPTS = ["5_o_Clock_Shadow", "Arched_Eyebrows", "Bags_Under_Eyes", "Bald", "B
             "Bushy_Eyebrows", "Chubby", "Double_Chin", "Goatee", "Heavy_Makeup", "High_Cheekbones", "No_Beard", "Pale_Skin", "Receding_Hairline",
             "Sideburns", "Smiling", "Wavy_Hair", "Wearing_Earrings", "Wearing_Lipstick", "Wearing_Necklace", "Wearing_Necktie", "Young"]
 
-# CAUSAL_CONCEPTS = ["5_o_Clock_Shadow", "Bald", "Bangs",
-#                   "Bushy_Eyebrows", "Goatee",
-#                   "Heavy_Makeup", "Mustache", "No_Beard",
-#                   "Receding_Hairline", "Sideburns",
-#                   "Wearing_Earrings", "Wearing_Lipstick", "Wearing_Necklace", "Wearing_Necktie"]
-
-# ATTRIBUTES = ["Big_Lips", "Big_Nose", "Black_Hair","Bushy_Eyebrows",
-#               "Heavy_Makeup", "High_Cheekbones", "Male", "Narrow_Eyes",
-#               "Oval_Face", "Pointy_Nose", "Smiling", "Straight_Hair",
-#               "Wearing_Earrings", "Wearing_Hat", "Wearing_Lipstick"]
-
-# ATTRIBUTES = ["Big_Lips", "Black_Hair",
-#               "Heavy_Makeup", "High_Cheekbones", "Male",
-#               "Pointy_Nose", "Straight_Hair",
-#               "Wearing_Earrings", "Wearing_Lipstick"]
-
 ATTRIBUTES = ["Eyeglasses", "Male", "Smiling", "Wearing_Lipstick"]
 
 CAUSAL_CONCEPTS = ["Male", "Young"]

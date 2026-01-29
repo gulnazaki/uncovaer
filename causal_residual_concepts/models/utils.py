@@ -154,64 +154,6 @@ def _distance_correlation(X, Y, max_samples=None):
     return float(dCor)
 
 
-def _mmd_rbf(X, Y, gamma=None, max_samples=None):
-    """
-    Compute Maximum Mean Discrepancy (MMD) with RBF kernel between 
-    latent distributions conditioned on binary confounder Y.
-    
-    Args:
-        X: (N, d) latent vectors
-        Y: (N,) binary labels (0 or 1)
-        gamma: RBF kernel bandwidth (if None, use median heuristic)
-        max_samples: if set, subsample each group to at most this many samples
-    
-    Returns:
-        MMD^2 estimate (higher = more different distributions)
-    """
-    X0 = X[Y == 0]
-    X1 = X[Y == 1]
-    
-    if len(X0) < 2 or len(X1) < 2:
-        return None
-    
-    # Subsample if requested to reduce memory
-    if max_samples is not None:
-        if len(X0) > max_samples:
-            idx0 = np.random.choice(len(X0), size=max_samples, replace=False)
-            X0 = X0[idx0]
-        if len(X1) > max_samples:
-            idx1 = np.random.choice(len(X1), size=max_samples, replace=False)
-            X1 = X1[idx1]
-    
-    # Median heuristic for bandwidth (on subsampled data)
-    X_sub = np.vstack([X0, X1])
-    if gamma is None:
-        # Use a smaller subsample for median heuristic to save memory
-        n_med = min(2000, len(X_sub))
-        idx_med = np.random.choice(len(X_sub), size=n_med, replace=False)
-        X_med = X_sub[idx_med]
-        all_dists = np.linalg.norm(X_med[:, np.newaxis] - X_med[np.newaxis, :], axis=2)
-        median_dist = np.median(all_dists[all_dists > 0])
-        gamma = 1.0 / (2 * median_dist ** 2 + 1e-8)
-    
-    def rbf_kernel(A, B):
-        sq_dist = np.sum(A**2, axis=1, keepdims=True) + np.sum(B**2, axis=1) - 2 * A @ B.T
-        return np.exp(-gamma * sq_dist)
-    
-    K00 = rbf_kernel(X0, X0)
-    K11 = rbf_kernel(X1, X1)
-    K01 = rbf_kernel(X0, X1)
-    
-    n0, n1 = len(X0), len(X1)
-    
-    # Unbiased MMD^2 estimator
-    mmd2 = (K00.sum() - np.trace(K00)) / (n0 * (n0 - 1)) \
-         + (K11.sum() - np.trace(K11)) / (n1 * (n1 - 1)) \
-         - 2 * K01.sum() / (n0 * n1)
-    
-    return float(max(0, mmd2))  # Clamp to non-negative
-
-
 def _compute_single_latent_metrics(latents, confounders, confounder_names, bins=10, max_samples=None, per_dim=False, include_nmi=False):
     """
     Compute ROC-AUC, NMI, distance correlation, and MMD for a single latent tensor vs confounders.
@@ -272,12 +214,6 @@ def _compute_single_latent_metrics(latents, confounders, confounder_names, bins=
             print(f"Distance correlation failed for {conf_name}: {e}")
             dcor = None
         
-        # # MMD: measures distribution shift between groups
-        # try:
-        #     mmd = _mmd_rbf(latents, conf, max_samples=max_samples)
-        # except Exception as e:
-        #     print(f"MMD computation failed for {conf_name}: {e}")
-        #     mmd = None
         
         dict_ = {
             "roc_auc": float(auc) if auc is not None else None,
@@ -690,59 +626,6 @@ def cosine_alignment_loss(x1, x2, lambda_orth=1.0, eps=1e-8):
     loss = ((1 - sim) ** 2).sum()        # minimum when sim == 1
 
     return sim, loss
-
-def double_robust_ate_loss(
-    r,             # residuals (tensor, requires_grad=True)
-    c,           # treatment indicator tensor (0 or 1)
-    y,             # observed outcome tensor
-    groundtruth_ates, # scalar tensor or float with known ATE for supervision
-    lr=1e-3,
-    epochs=100,
-    batch_size=256,
-    device="cuda"
-):
-    B, K = c.shape
-    total_loss = 0.0
-
-    for i in range(K):
-        c_i = c[:, i:i+1]
-        r_i = r[:, i:i+1]
-
-        # Move inputs to device
-        r_i = r_i.to(device).float()
-        c_i = c_i.to(device).float()
-        y = y.to(device).float()
-
-        # Initialize models
-        propensity_model = PropensityScoreModel(input_dim=r_i.shape[1]).to(device)
-        outcome_treated = OutcomeEstimator(input_dim=r_i.shape[1]).to(device)
-        outcome_control = OutcomeEstimator(input_dim=r_i.shape[1]).to(device)
-
-        # 1) Train propensity score model P(C_i=1|R_i)
-        propensity_model.train_model(r_i, c_i, lr=lr, epochs=epochs, batch_size=batch_size, device=device)
-
-        # 2) Train outcome models on treated and untreated separately
-        treated_idx = (c_i == 1).nonzero(as_tuple=True)[0]
-        control_idx = (c_i == 0).nonzero(as_tuple=True)[0]
-
-        outcome_treated.train_model(r_i[treated_idx], y[treated_idx], lr=lr, epochs=epochs, batch_size=batch_size, device=device)
-        outcome_control.train_model(r_i[control_idx], y[control_idx], lr=lr, epochs=epochs, batch_size=batch_size, device=device)
-
-        # 3) Predict propensity scores and potential outcomes
-        e_i = propensity_model.get_propensity_score(r_i, device=device).view(-1, 1)  # shape (N,1)
-        y1_hat = outcome_treated.predict(r_i, device=device).view(-1, 1)
-        y0_hat = outcome_control.predict(r_i, device=device).view(-1, 1)
-
-        # 4) Compute DR estimate
-        dr_term = ((c_i.view(-1,1) - e_i) / (e_i * (1 - e_i))) * (y.view(-1,1) - c_i.view(-1,1) * y1_hat - (1 - c_i.view(-1,1)) * y0_hat) + (y1_hat - y0_hat)
-
-        ate_hat = dr_term.mean()
-
-        # 5) Supervised loss comparing estimated ATE to groundtruth ATE
-        loss = (ate_hat - groundtruth_ates[i].to(device)) ** 2
-        total_loss += loss
-
-    return total_loss / K
 
 
 def linear_and_orthogonal_loss(x1, x2, lambda_orth=1.0, eps=1e-8):

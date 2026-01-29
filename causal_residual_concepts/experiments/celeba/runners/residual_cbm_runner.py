@@ -15,10 +15,7 @@ from models.utils import (
     DINOV2_EMBED_DIM
 )
 from experiments.celeba.runners.ipw_runner import _init_model as _init_ipw, _load_checkpoint as _load_ipw
-try:
-    import joblib
-except ImportError:  # pragma: no cover
-    joblib = None
+import joblib
 from sklearn.linear_model import LogisticRegression
 import numpy as np
 import torch

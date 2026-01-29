@@ -12,12 +12,7 @@ from models.utils import (
     generate_checkpoint_callback,
     generate_early_stopping_callback,
     generate_ema_callback,
-    compute_latent_confounder_metrics,
-    # analyze_latents,
-    # analyze_latents_simple,
-    # analyze_latents_flat_shortcut,
-    # pcf_fit,
-    # pcf_apply
+    compute_latent_confounder_metrics
 )
 from models.aipw_utils import aipw_crossfit, collect_latents_from_dataloader
 import joblib
@@ -227,79 +222,6 @@ def _compare_latents(trainer, model, dataloader, config, z_type="z_c"):
     return confounder_metrics
 
 
-# def _pcf(config, model, seed, test_preds, z_key="z_c"):
-#     """
-#     Fit PCF on train predictions and evaluate on test.
-#     
-#     Args:
-#         z_key: Which latent to use for PCF
-#     """
-#     # Fit PCF on TRAIN predictions
-#     pca_model = None
-#     topK_indices = None
-#     try:
-#         train_loader, _, _ = get_dataloader(
-#             batch_size=config['batch_size'],
-#             split='train',
-#             attributes=config['attributes'],
-#             transforms=config['transforms'],
-#             binarize=config['binarize'],
-#             data_dir=config.get('data_dir', None) + f'_{seed}',
-#             shortcuts=config.get('shortcuts', [SHORTCUT]),
-#             coefficients=config.get("coefficients", COEFFICIENTS),
-#             seed=seed
-#         )
-#         trainer = Trainer(
-#             accelerator="auto",
-#             devices="auto",
-#             strategy="auto",
-#             default_root_dir=config['ckpt_path'],
-#         )
-#         train_preds = trainer.predict(model, train_loader)
-#         c_train = torch.cat([p["c"] for p in train_preds], dim=0)
-#         y_train = torch.cat([p["y"] for p in train_preds], dim=0)
-#         z_train = torch.cat([p[z_key] for p in train_preds], dim=0)
-# 
-#         pca_model, rankings, topK_indices = pcf_fit(
-#             z_s=z_train,
-#             c=c_train,
-#             y=y_train,
-#             concept_names=config['attributes'],
-#             n_components=None,
-#             random_state=0,
-#             top_k=3,
-#         )
-#     except Exception as e:
-#         print(f"PCF({z_key}) train fit failed: {e}")
-#     
-#     # Report PCF shortcut correlations on TEST using train PCA + selection
-#     results = {}
-#     try:
-#         c_test = torch.cat([p["c"] for p in test_preds], dim=0)
-#         y_test = torch.cat([p["y"] for p in test_preds], dim=0)
-#         s_test = torch.cat([p["shortcuts"] for p in test_preds], dim=0)
-#         z_test = torch.cat([p[z_key] for p in test_preds], dim=0)
-# 
-#         z_c_est_test = pcf_apply(pca_model, topK_indices, z_test)
-#         shortcut_summary_test = analyze_latents(
-#             z_c_list=z_c_est_test,
-#             c_arr=c_test.detach().cpu().numpy(),
-#             shortcut_arr=s_test.detach().cpu().numpy(),
-#             y_arr=y_test.detach().cpu().numpy(),
-#             concept_names=config['attributes'],
-#             shortcut_names=config.get('shortcuts', [SHORTCUT]),
-#             include_mathews=False,
-#         )
-#         results = {
-#             "topK_components_train": topK_indices,
-#             "shortcut_summary_test": shortcut_summary_test,
-#         }
-#     except Exception as e:
-#         print(f"PCF({z_key}) test reporting failed: {e}")
-#     
-#     return results
-
-
 def test_model(model, config, split="id", seed=0):
     test_loader, indices = get_dataloader(
         batch_size=config['batch_size'],
@@ -335,21 +257,7 @@ def test_model(model, config, split="id", seed=0):
             dim = config.get(dim_key, 0)
         if dim > 0:
             latent_results[z_type] = _compare_latents(trainer, model, test_loader, config, z_type=z_type)
-    
-    # PCF using z_c latents (commented out - not helpful)
-    # try:
-    #     test_preds = trainer.predict(model, test_loader)
-    #     latent_results["pcf_zc"] = _pcf(config, model, seed, test_preds, z_key="z_c")
-    # except Exception as e:
-    #     print(f"PCF(z_c) overall failed: {e}")
 
-    # Generate counterfactuals
-    # if config.get('out_dir', None):
-    #     print("\nGenerating Counterfactuals...")
-    #     out_dir = os.path.join(config['out_dir'], f'counterfactuals_{split}_{seed}')
-    #     os.makedirs(out_dir, exist_ok=True)
-    #     if hasattr(model, 'create_counterfactuals'):
-    #         model.create_counterfactuals(test_loader, out_dir, concept_names=config['attributes'], device="cuda")
 
     return {
         "ate_results": ate_results,

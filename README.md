@@ -15,31 +15,32 @@ causal-residual-concepts
 ├── requirements.txt                                # requirements
 └── causal_residual_concepts
     ├── datasets
-    │   ├── morphomnist
-    │   │   ├── data_confounded_i_by_t_<DIGIT>      # dataset for Single Confounder case (DIGIT: 0-4)
-    │   │   ├── data_confounded_i_by_ts_or<DIGIT>   # dataset for Multiple Confounders
-    │   │   ├── data_confounded_is_by_t_<DIGIT>     # dataset for Common Confounder
-    │   │   ├── data_confounded_s_by_it_<DIGIT>     # dataset for Causal Confounder
-    │   │   ├── mnist                               # original mnist
-    │   │   ├── morphomnist                         # morphomnist original repo
-    │   │   ├── create_dataset.py                   # script to generate confounded datasets
-    │   │   └── dataset.py                          # dataloaders
-    │   └── celeba
-    │       ├── dataset.py                          # dataloaders   
+    │   ├── celeba
+    │   │   ├── config.py                           # variables
+    │   │   └── dataset.py                          # dataloaders   
+    │   └ morphomnist
+    │       ├── data_confounded_i_by_t_<DIGIT>      # dataset for Single Confounder case (DIGIT: 0-4)
+    │       ├── data_confounded_i_by_ts_or<DIGIT>   # dataset for Multiple Confounders
+    │       ├── data_confounded_is_by_t_<DIGIT>     # dataset for Common Confounder
+    │       ├── data_confounded_s_by_it_<DIGIT>     # dataset for Causal Confounder
+    │       ├── mnist                               # original mnist
+    │       ├── morphomnist                         # morphomnist submodule
+    │       ├── create_dataset.py                   # script to generate confounded datasets
+    │       └── dataset.py                          # dataloaders
+    │
     ├── experiments
+    |   ├── celeba
+    │   │   ├── configs                             # configurations to run experiments (hyperparameters, etc.)
+    │   |   └─── runners                            # train_model, test_model, estimate CaCE for all models
     │   ├── morphomnist
-    │   │   ├── configs
-    │   |   └── runners                             # train_model, test_model, estimate_ate for all models
-    ├── celeba
-    │   │   ├── configs
-    │   |   └─── runners                            # train_model, test_model, estimate_ate for all models
-    │   ├─ utils                                    # helper scripts for results gathering and plotting
-    │   ├─ run_baselines.py                         # run naive and oracle baselines   
-    │   └── run_experiments.py                      # entry-point for our experiments                                   #
+    │   │   ├── configs                             # configurations to run experiments (hyperparameters, etc.)
+    │   |   └── runners                             # train_model, test_model, estimate CaCE for all models
+    │   ├── utils                                   # helper scripts for results gathering and plotting
+    │   ├── run_baselines.py                        # run naive and oracle baselines   
+    │   └── run_experiments.py                      # entry-point for our experiments
     └── models
         ├── cace.py                                 # CaCE
         ├── ipw.py                                  # Image-Adjustment + CBM
-        ├── mutual_information.py                   # MI estimator model
         ├── residual_cbm.py                         # Res-CBM
         ├── uncovaer.py                             # UnCoVAEr variants
         └── utils.py                                # helper functions for models
@@ -55,20 +56,23 @@ pip install -r requirements.txt
 ```
 
 ### Reproduce Experiments
-For the Single Confounder case, use the configs under `configs/confounded_i_by_t/`, change accordingly. 
+For the Single Confounder case, use the configs under `experiments/morphomnist/configs/single/`, change accordingly. 
 
 First, train the naive and oracle estimators that will be used by all models to test the confounding criterion and for comparison:
 ```
-python3 run_baselines.py configs/confounded_i_by_t/uncovaer.yaml
+python3 experiments/run_baselines.py experiments/morphomnist/configs/single/uncovaer.yaml
 ```
 
-Next, train, test and estimate CaCEs for all our models.
+Next, train, test and estimate CaCEs for all our models (e.g. for UnCoVAEr):
+```
+python3 experiments/run_experiments.py experiments/morphomnist/configs/single/uncovaer.yaml
+```
 
 For each model, the script runs five experiments using random seeds 0–4. In each run, it:
 1. Sets the random seed to ensure reproducibility and selects the dataset corresponding to that seed’s digit.
 2. Trains the model on the chosen dataset.
 3. Evaluates the model by testing its predictions for the target variable $Y$
-4. Estimates the Average Treatment Effect (ATE) for the concepts of interest.
+4. Estimates the Causal Concept Effect (CaCE) for the concepts of interest.
 5. Computes the correlation and mutual information between the learned confounder representation $Z_C$ and the known latent confounder *(UnCoVAEr only)*
 
 *Training is skipped if a model checkpoint exists in the directory already.*

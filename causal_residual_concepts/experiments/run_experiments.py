@@ -3,13 +3,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
 from experiments.utils.seed_utils import set_global_seed
 from experiments.utils.result_utils import aggregate_results
-from experiments.morphomnist.runners import uncovaer_runner as uncovaer_morpho, uncovaer_nfivae_runner as nfivae_morpho, cace_runner as cace_morpho, ipw_runner as ipw_morpho, image_adjust_runner as adj_morpho, residual_cbm_runner as rescbm_morpho
+from experiments.morphomnist.runners import uncovaer_runner as uncovaer_morpho, cace_runner as cace_morpho, ipw_runner as ipw_morpho, image_adjust_runner as adj_morpho, residual_cbm_runner as rescbm_morpho
 from experiments.celeba.runners import uncovaer_runner as uncovaer_celeba, cace_runner as cace_celeba, ipw_runner as ipw_celeba, image_adjust_runner as adj_celeba, residual_cbm_runner as rescbm_celeba
 
 RUNNERS = {
     "morphomnist": {
         "uncovaer": uncovaer_morpho,
-        "uncovaer_nfivae": nfivae_morpho,
         "cace": cace_morpho,
         "ipw": ipw_morpho,
         "image_adjust": adj_morpho,

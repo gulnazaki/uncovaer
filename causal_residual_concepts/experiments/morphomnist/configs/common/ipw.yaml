@@ -1,0 +1,15 @@
+model: ipw
+dataset: morphomnist
+attributes: ["intensity", "width", "slant"]
+shortcuts: ["thickness"]
+transforms: null
+batch_size: 256
+ema: False
+lr: 1e-3
+max_epochs: 400
+patience: 5
+binarize: true
+feat_dim: 128
+seeds: [0, 1, 2, 3, 4]
+data_dir: data_confounded_is_by_t
+coefficients: [0.3, 0.2, 0.3, 0.2]

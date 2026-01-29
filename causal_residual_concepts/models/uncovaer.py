@@ -9,7 +9,7 @@ from torchmetrics.classification import BinaryF1Score, Accuracy
 import matplotlib.pyplot as plt
 import os
 from .mutual_information import MutualInformationLoss
-from .utils import STEFunction, detect_confounding, pehe, compute_true_ite_ate, GRLWrapper
+from .utils import detect_confounding, pehe, compute_true_ite_ate, GRLWrapper
 from .image_modules import MorphoMNISTEncoder, MorphoMNISTDecoder
 from .uncovaer_nfivae import ExponentialFamilyPrior
 
@@ -36,7 +36,7 @@ class UnCoVAEr(pl.LightningModule):
         y_latent_dim: int = 16,
         style_latent_dim: int = 0,
         kl_anneal_start: int = 0,
-        kl_anneal_end: int = 50,
+        kl_anneal_end: int = 0,
         use_aux: bool = True,
         aux_weight_c: float = 1.0,
         aux_weight_y: float = 1.0,
@@ -52,10 +52,8 @@ class UnCoVAEr(pl.LightningModule):
         z_on_c: bool = True,
         z_on_y: bool = True,
         separate_encoders: bool = False,
-        marginalize_c: bool = False,
+        marginalize_c: bool = True,
         beta: float = 1.0,
-        two_stage: bool = False,
-        first_stage_epochs: int = 50,
         separate_prior_encoders: bool = True,
         mse_loss: bool = False,
     ):
@@ -68,7 +66,7 @@ class UnCoVAEr(pl.LightningModule):
                 +--------------------+
             Zt (treatment-only) --> C
             Zy (outcome-only)   --> Y
-            Zx (style)          --> X only
+            (not used) Zx (style)          --> X only
             All Z components    --> X
 
         Generative model:
@@ -78,7 +76,7 @@ class UnCoVAEr(pl.LightningModule):
 
         Identification Strategy:
             Zc is identified by being the ONLY latent that predicts both C and Y.
-            Independence constraints enforce separation:
+            Optional independence constraints enforce separation:
                 - I(Zt; Y | C) -> 0  (treatment latent independent of outcome given concepts)
                 - I(Zy; C) -> 0      (outcome latent independent of concepts)
                 - I(Zx; C) -> 0      (style latent independent of concepts)
@@ -146,11 +144,6 @@ class UnCoVAEr(pl.LightningModule):
         self.beta = beta
         self.mse_loss = mse_loss
 
-        # Two-stage training: stage1 -> train Zt and Zy only (use prior for Zc)
-        # stage2 -> freeze Zt and Zy encoders and train Zc encoder
-        self.two_stage = two_stage
-        self.first_stage_epochs = first_stage_epochs
-
         self.no_X = no_X
         self.no_C = no_C
         self.pure_idvae = pure_idvae
@@ -174,10 +167,8 @@ class UnCoVAEr(pl.LightningModule):
             # | Zy     | p(Zy | Y)       | Only Y info → Zy ⊥ C           |
             # | Zx     | p(Zx) = N(0,I)  | No C,Y info → Zx ⊥ (C,Y)       |
             #
-            # Why this works:
             # KL(q(Zt|X,C,Y) || p(Zt|C)) penalizes encoding Y info that isn't in prior.
             # Since p(Zt|C) doesn't see Y, posterior is pushed to NOT encode Y beyond C.
-            # This is exactly Zt ⊥ Y | C !
             #
             # Combined with IDVAE bidirectional structure:
             # - Part ①: KL(q(Z|X,u) || p(Z|u_partition)) with partition-specific u
@@ -188,13 +179,6 @@ class UnCoVAEr(pl.LightningModule):
             self.prior_encoder_zc = None
             self.prior_encoder_zt = None
             self.prior_encoder_zy = None
-
-            # iVAE identifiability requires decoder p(x|z) independent of u
-            if self.x_on_c or self.x_on_y:
-                print("WARNING: iVAE requires decoder p(x|z) to be independent of u=(c,y). "
-                      "Forcing x_on_c=False and x_on_y=False.")
-                self.x_on_c = False
-                self.x_on_y = False
 
             self.prior_lambda_clamp = 10.0
             
@@ -841,7 +825,6 @@ class UnCoVAEr(pl.LightningModule):
         x_feat = self.img_encoder(x)
         
         # Encode and sample latents q(Zc, Zt, Zy, Zx | X, C, Y)
-        # _post_params now returns global GMM posterior tensors (if applicable)
         post = self._post_params(x_feat, c, y)
         # unpack returned tuple (with optional trailing global-gmm items)
         (z_c, z_t, z_y, z_x, z,
@@ -934,7 +917,6 @@ class UnCoVAEr(pl.LightningModule):
         # | Zc     | p(Zc | C, Y)  | Can encode both C and Y info        |
         # | Zt     | p(Zt | C)     | Only C info → Zt ⊥ Y | C            |
         # | Zy     | p(Zy | Y)     | Only Y info → Zy ⊥ C                |
-        # | Zx     | p(Zx) = N(0,I)| No C,Y info → Zx ⊥ (C,Y)            |
         #
         # Part ①: KL(q(Z_partition|X,C,Y) || p(Z_partition|u_partition))
         #         Each partition has its own conditional prior with different u!
@@ -1223,9 +1205,6 @@ class UnCoVAEr(pl.LightningModule):
         else:
             loss_C = F.binary_cross_entropy_with_logits(c_logits, c, reduction='sum') / B
         
-        # Add posterior C,Y reconstruction (helps decoder training for causal inference)
-        # These losses train the decoders with posterior samples in addition to prior samples
-        # 
         # In PURE IDVAE mode (pure_idvae=True):
         #   - Part ① only has p(X|z) reconstruction (no loss_C, loss_Y from posterior)
         #   - Part ② has p(C,Y|z) from prior samples only
@@ -1233,26 +1212,12 @@ class UnCoVAEr(pl.LightningModule):
         #
         # In HYBRID mode (pure_idvae=False, default):
         #   - Add loss_C, loss_Y from posterior to help decoder training
-        #   - Better for causal inference where accurate C,Y decoders are needed
         if not (self.conditional_prior and self.pure_idvae):
             total_loss += loss_C + loss_Y
         
         indep_loss = torch.tensor(0.0, device=x.device)
         
         if self.mim_weight > 0:
-            # Compute baseline prediction E[Y|C] for residualization
-            # This is used to test I(Zt; Y | C) = I(Zt; Y - E[Y|C])
-            with torch.no_grad():
-                y_baseline_logits = self.baseline_y_from_c(c)
-                y_baseline_prob = torch.sigmoid(y_baseline_logits)
-            # Also train the baseline predictor (but don't backprop through residual computation)
-            y_baseline_logits_train = self.baseline_y_from_c(c)
-            baseline_loss = F.binary_cross_entropy_with_logits(y_baseline_logits_train, y, reduction='mean')
-            total_loss = total_loss + baseline_loss
-            
-            # Compute residual: Y - E[Y|C] (the part of Y not explained by C)
-            y_residual = y - y_baseline_prob
-            
             if self.use_adversarial_independence:
                 # Adversarial approach with unified loss:
                 # 1. Adversary loss (positive): train predictor using detached latents
@@ -1282,6 +1247,18 @@ class UnCoVAEr(pl.LightningModule):
                     adv_loss = F.binary_cross_entropy_with_logits(y_pred, y, reduction='mean')
                     total_loss = total_loss + self.mim_weight * adv_loss
             else:
+                # Compute baseline prediction E[Y|C] for residualization
+                # This is used to test I(Zt; Y | C) = I(Zt; Y - E[Y|C])
+                with torch.no_grad():
+                    y_baseline_logits = self.baseline_y_from_c(c)
+                    y_baseline_prob = torch.sigmoid(y_baseline_logits)
+                # Also train the baseline predictor (but don't backprop through residual computation)
+                y_baseline_logits_train = self.baseline_y_from_c(c)
+                baseline_loss = F.binary_cross_entropy_with_logits(y_baseline_logits_train, y, reduction='mean')
+                total_loss = total_loss + baseline_loss
+                # Compute residual: Y - E[Y|C] (the part of Y not explained by C)
+                y_residual = y - y_baseline_prob
+
                 # MI-based approach using CLUB estimator
                 # I(Zt; Y | C): estimate I(Zt; Y_residual) where Y_residual = Y - E[Y|C]
                 # This correctly tests conditional independence via residualization
@@ -1389,7 +1366,7 @@ class UnCoVAEr(pl.LightningModule):
             print("WARNING: using ground-truth c,y for inference!")
             c_hat = c.float()
             y_hat = y.float()
-            c_hat_prob = c_hat  # deterministic
+            c_hat_prob = c_hat
             y_hat_prob = y_hat
             if y_hat.dim() == 1:
                 y_hat = y_hat.unsqueeze(1)
@@ -1481,12 +1458,8 @@ class UnCoVAEr(pl.LightningModule):
             parts = []
             if z_c_chunks[i] is not None:
                 parts.append(z_c_chunks[i])
-                # TODO change as we assume shared:
-                # parts.append(self._combine_latents(*z_c_chunks))
             if z_t_chunks[i] is not None:
                 parts.append(z_t_chunks[i])
-                # TODO change as we assume shared:
-                # parts.append(self._combine_latents(*z_t_chunks))
             # include parents
             for p in (self.causal_parents[i] if self.causal_parents is not None else []):
                 parts.append(c_curr[:, p].unsqueeze(-1))
@@ -1599,7 +1572,6 @@ class UnCoVAEr(pl.LightningModule):
                 z_adjust = z_adjust.to(device)
                 
                 if not self.no_C and self.marginalize_c:
-                    # TODO now we marginalize C-i
                     if self.L > 0:
                         z_c_chunks = self._split_latents(z_c)  # list of [B,L]
                         z_t_chunks = self._split_latents(z_t)  # list of [B,L]
@@ -1985,83 +1957,3 @@ class UnCoVAEr(pl.LightningModule):
                 mi_est = self.mi_loss_fn_zx_y(z_x, y)
                 self.log("mi_estimator_loss_zx_y", mi_loss, on_step=False, on_epoch=True)
                 self.log("mi_estimate_zx_y", mi_est.mean(), on_step=False, on_epoch=True)
-
-    def _set_requires_grad(self, module_or_attr, requires_grad: bool):
-        """Helper to toggle requires_grad for a module or parameter attribute."""
-        if module_or_attr is None:
-            print("Warning: trying to set requires_grad on None attribute.")
-            return
-        # If it's a module, set for parameters
-        if isinstance(module_or_attr, nn.Module):
-            for p in module_or_attr.parameters():
-                p.requires_grad = requires_grad
-            return
-        # If it's a tensor/parameter-like attribute (e.g. Linear), try to set params
-        try:
-            for p in module_or_attr.parameters():
-                p.requires_grad = requires_grad
-        except Exception as e:
-            print(f"Warning: exception when setting requires_grad: {e}")
-            return
-
-    def on_train_epoch_start(self):
-        """Toggle encoder training based on two-stage schedule.
-
-        Stage 1 (epoch < first_stage_epochs): train Zt and Zy encoders, use prior for Zc.
-        Stage 2 (epoch >= first_stage_epochs): freeze Zt and Zy encoders, train Zc encoder.
-        """
-        if not getattr(self, "two_stage", False):
-            return
-
-        # Only meaningful for separate_encoders + conditional_prior and valid latent dims
-        cond_ok = (
-            self.separate_encoders and self.conditional_prior
-            and self.t_latent_dim > 0 and self.y_latent_dim > 0 and self.z_c_dim > 0
-        )
-        if not cond_ok:
-            print("Two-stage training requires separate_encoders=True, conditional_prior=True, and all latent dims > 0.")
-            return
-
-        epoch = float(self.current_epoch)
-        in_stage1 = epoch < float(self.first_stage_epochs)
-
-        # Stage1: enable t,y encoders, disable c encoder
-        if in_stage1:
-            # Disable Zc posterior and prior encoders during stage1
-            self._set_requires_grad(getattr(self, 'post_net_c', None), False)
-            self._set_requires_grad(getattr(self, 'mu_c', None), False)
-            self._set_requires_grad(getattr(self, 'logvar_c', None), False)
-
-            self._set_requires_grad(getattr(self, 'prior_encoder_zc', None), False)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zc_mu', None), False)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zc_logvar', None), False)
-
-            # log once per epoch
-            self.log('two_stage_phase', 1.0, prog_bar=False, on_step=False, on_epoch=True)
-        else:
-            # Stage2: freeze t,y encoders and enable c encoder
-            # Enable Zc posterior and prior encoders
-            self._set_requires_grad(getattr(self, 'post_net_c', None), True)
-            self._set_requires_grad(getattr(self, 'mu_c', None), True)
-            self._set_requires_grad(getattr(self, 'logvar_c', None), True)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zc', None), True)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zc_mu', None), True)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zc_logvar', None), True)
-            
-            # Disable Zt posterior and prior encoders
-            self._set_requires_grad(getattr(self, 'post_net_t', None), False)
-            self._set_requires_grad(getattr(self, 'mu_t', None), False)
-            self._set_requires_grad(getattr(self, 'logvar_t', None), False)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zt', None), False)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zt_mu', None), False)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zt_logvar', None), False)
-
-            # Disable Zy posterior and prior encoders
-            self._set_requires_grad(getattr(self, 'post_net_y', None), False)
-            self._set_requires_grad(getattr(self, 'mu_y', None), False)
-            self._set_requires_grad(getattr(self, 'logvar_y', None), False)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zy', None), False)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zy_mu', None), False)
-            self._set_requires_grad(getattr(self, 'prior_encoder_zy_logvar', None), False)
-
-            self.log('two_stage_phase', 2.0, prog_bar=False, on_step=False, on_epoch=True)

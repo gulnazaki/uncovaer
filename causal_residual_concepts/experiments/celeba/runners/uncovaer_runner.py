@@ -14,18 +14,10 @@ from models.utils import (
     generate_checkpoint_callback,
     generate_early_stopping_callback,
     generate_ema_callback,
-    compute_latent_confounder_metrics,
-    # analyze_latents,
-    # analyze_latents_flat_shortcut,
-    # pcf_fit,
-    # pcf_apply,
+    compute_latent_confounder_metrics
 )
 from models.aipw_utils import aipw_crossfit
-
-try:
-    import joblib
-except ImportError:
-    joblib = None
+import joblib
 
 
 def get_callbacks(config, name):
@@ -258,97 +250,16 @@ def _compare_latents(trainer, model, dataloader, config, z_type="z_c"):
         confounder_names=shortcut_names,
         concept_names=attributes if isinstance(z, list) else None,
         max_samples=1000,
-        per_dim=True,
+        per_dim=False,
         include_nmi=True
     )
     
     return confounder_metrics
 
 
-# def _pcf(config, model, trainer, test_preds, z_key="z_c", seed=0):
-#     """
-#     Fit PCF on train predictions and evaluate on test.
-#     
-#     Args:
-#         z_key: Which latent to use for PCF
-#         seed: Random seed for reproducibility
-#     """
-#     attributes = config.get("attributes", ATTRIBUTES)
-#     shortcuts = config.get("shortcuts", [c for c in CAUSAL_CONCEPTS if c not in attributes])
-#     
-#     pca_model = None
-#     topK_indices = None
-#     try:
-#         train_loader, _ = get_dataloader(
-#             batch_size=config['batch_size'],
-#             split='train',
-#             attributes=attributes,
-#             transforms=RandomHorizontalFlip(0.5) if config.get('use_augmentation', False) else None,
-#             task=config.get("y", TASK),
-#             data_dir=config['data_dir'],
-#             shortcuts=shortcuts,
-#             use_dinov2_embeddings=config.get('use_dinov2_embeddings', False),
-#             use_cached_images=config.get('use_cached_images', False),
-#             coefficients=config.get("coefficients") if config.get('use_synthetic_label', False) else None,
-#             seed=seed
-#         )
-#         train_preds = trainer.predict(model, train_loader)
-#         c_train = torch.cat([p["c"] for p in train_preds], dim=0)
-#         y_train = torch.cat([p["y"] for p in train_preds], dim=0)
-#         z_train = torch.cat([p[z_key] for p in train_preds], dim=0)
-# 
-#         pca_model, rankings, topK_indices = pcf_fit(
-#             z_s=z_train,
-#             c=c_train,
-#             y=y_train,
-#             concept_names=attributes,
-#             n_components=None,
-#             random_state=0,
-#             top_k=3,
-#         )
-#     except Exception as e:
-#         print(f"PCF({z_key}) train fit failed: {e}")
-# 
-#     results = {}
-#     try:
-#         c_test = torch.cat([p["c"] for p in test_preds], dim=0)
-#         y_test = torch.cat([p["y"] for p in test_preds], dim=0)
-#         s_test = torch.cat([p["shortcuts"] for p in test_preds], dim=0)
-#         z_test = torch.cat([p[z_key] for p in test_preds], dim=0)
-# 
-#         z_c_est_test = pcf_apply(pca_model, topK_indices, z_test)
-#         shortcut_summary_test = analyze_latents(
-#             z_c_list=z_c_est_test,
-#             c_arr=c_test.detach().cpu().numpy(),
-#             shortcut_arr=s_test.detach().cpu().numpy(),
-#             y_arr=y_test.detach().cpu().numpy(),
-#             concept_names=attributes,
-#             shortcut_names=shortcuts,
-#             include_mathews=False,
-#         )
-#         
-#         # Compute ROC-AUC and NMI for PCF-extracted latents vs confounders
-#         z_c_est_concat = torch.cat(z_c_est_test, dim=1)  # [N, total_pcf_dims]
-#         pcf_confounder_metrics = compute_latent_confounder_metrics(
-#             latents=z_c_est_concat,
-#             confounders=s_test,
-#             confounder_names=shortcuts
-#         )
-#         
-#         results = {
-#             "topK_components_train": topK_indices,
-#             "shortcut_summary_test": shortcut_summary_test,
-#             "confounder_metrics": pcf_confounder_metrics,
-#         }
-#     except Exception as e:
-#         print(f"PCF({z_key}) test reporting failed: {e}")
-# 
-#     return results
-
-
 def test_model(model, config, split="id", seed=0):
     if split == "ood":
-        print("Skipping OOD test...")
+        print("No OOD test for CelebA...")
         return {}
     
     attributes = config.get("attributes", ATTRIBUTES)
@@ -393,20 +304,6 @@ def test_model(model, config, split="id", seed=0):
             dim = config.get(dim_key, 0)
         if dim > 0:
             latent_results[z_type] = _compare_latents(trainer, model, test_loader, config, z_type=z_type)
-
-    # PCF using z_c latents (commented out - not helpful)
-    # try:
-    #     test_preds = trainer.predict(model, test_loader)
-    #     latent_results["pcf_zc"] = _pcf(config, model, trainer, test_preds, z_key="z_c", seed=seed)
-    # except Exception as e:
-    #     print(f"PCF(z_c) overall failed: {e}")
-
-    # if config.get('out_dir', None) and not config.get('use_dinov2_embeddings', False):
-    #     out_dir = os.path.join(config['out_dir'], f'counterfactuals_{split}_{seed}')
-    #     os.makedirs(out_dir, exist_ok=True)
-    #     if hasattr(model, 'create_counterfactuals'):
-    #         print("\nGenerating Counterfactuals...")
-    #         model.create_counterfactuals(test_loader, out_dir, concept_names=attributes, device="cuda")
 
     return {
         "ate_results": ate_results,

@@ -21,11 +21,7 @@ from models.utils import (
     init_weights,
     DINOV2_EMBED_DIM
 )
-
-try:
-    import joblib
-except ImportError:  # pragma: no cover - joblib missing only in limited envs
-    joblib = None
+import joblib
 
 
 class Dinov2Projector(nn.Module):

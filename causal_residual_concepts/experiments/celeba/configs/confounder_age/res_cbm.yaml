@@ -1,0 +1,19 @@
+model: residual_cbm
+dataset: celeba
+y: "Attractive"
+use_augmentation: true
+batch_size: 512
+ema: false
+lr: 1e-3
+max_epochs: 100
+patience: 5
+binarize: true
+use_aux: true
+feat_dim: 256
+max_epochs: 400
+patience: 5
+seeds: [0, 1, 2, 3, 4]
+residual_dim: 16
+use_cached_images: false
+use_dinov2_embeddings: false
+use_synthetic_label: true
