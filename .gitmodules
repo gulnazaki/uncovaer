@@ -1,3 +1,3 @@
-[submodule "causal_residual_concepts/datasets/morphomnist/morphomnist"]
-	path = causal_residual_concepts/datasets/morphomnist/morphomnist
+[submodule "src/datasets/morphomnist/morphomnist"]
+	path = src/datasets/morphomnist/morphomnist
 	url = https://github.com/dccastro/Morpho-MNIST

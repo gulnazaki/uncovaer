@@ -13,7 +13,7 @@ Abstract:
 causal-residual-concepts
 ├── README.md                                       # (This file)
 ├── requirements.txt                                # requirements
-└── causal_residual_concepts
+└── src
     ├── datasets
     │   ├── celeba
     │   │   ├── config.py                           # variables
