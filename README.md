@@ -10,10 +10,10 @@ Abstract:
 
 ## Repository Structure
 ```
-causal-residual-concepts
+uncovaer
 ├── README.md                                       # (This file)
 ├── requirements.txt                                # requirements
-└── causal_residual_concepts
+└── src
     ├── datasets
     │   ├── morphomnist
     │   │   ├── data_confounded_i_by_t_<DIGIT>      # dataset for Single Confounder case (DIGIT: 0-4)
