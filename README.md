@@ -1,12 +1,11 @@
 # uncovaer
 
-### **UnCoVAEr:** Identifiable Estimation of Causal Concept Effects under Visual Latent Confounding
+### Identifiable Estimation of Causal Concept Effects under Visual Latent Confounding
 
-**UnCoVAEr (Unobserved Confounding Variational AutoEncoder)** provides a principled framework for estimating causal effects of human-interpretable concepts on image-based model predictions in the presence of latent (unobserved) confounders.
-
+**UnCoVAEr (Unobserved Confounding Variational AutoEncoder)** is a latent-variable model that learns identifiable representations of visual confounders from images, enabling unbiased estimation of causal concept effects.
 Abstract:
 
-*Estimating the causal effect of human-interpretable visual concepts on outcomes is essential for auditing classifiers and assessing bias in image datasets. However, existing estimators typically assume unconfoundedness, a condition rarely met in practice, as concept annotations are seldom exhaustive. We formalize the problem of visual latent confounding, where unannotated factors manifest as high-dimensional visual signatures that jointly influence observed concepts and outcomes. We present UnCoVAEr (Unobserved Confounding Variational AutoEncoder), a latent-variable model that learns identifiable confounder representations from images. By leveraging observed concepts and outcomes as auxiliary variables, we prove that UnCoVAEr identifies representations sufficient for backdoor adjustment under standard assumptions. Empirically, UnCoVAEr achieves lower causal effect estimation bias on MorphoMNIST and CelebA benchmarks, outperforming feature-adjustment, counterfactual, and latent-variable baselines.*
+*Estimating the causal effect of human-interpretable visual concepts on outcomes is essential for auditing classifiers and assessing bias in image datasets. However, existing estimators typically assume unconfoundedness, a condition rarely met in practice, as concept annotations are seldom exhaustive. We formalize the problem of visual latent confounding, where unannotated factors manifest as high-dimensional visual signatures that jointly influence observed concepts and outcomes. We present UnCoVAEr (Unobserved Confounding Variational AutoEncoder), a latent-variable model that learns identifiable confounder representations from images. By leveraging observed concepts and outcomes as auxiliary variables, we prove that UnCoVAEr identifies representations sufficient for backdoor adjustment under standard assumptions. Empirically, UnCoVAEr achieves lower causal concept effect estimation bias on MorphoMNIST and CelebA benchmarks, outperforming feature-adjustment, counterfactual, and latent-variable baselines.*
 
 ## Repository Structure
 ```
