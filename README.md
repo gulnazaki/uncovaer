@@ -11,7 +11,7 @@ Abstract:
 
 ## Repository Structure
 ```
-uncovaer
+src
 ├── README.md                                       # (This file)
 ├── requirements.txt                                # requirements
 └── src
