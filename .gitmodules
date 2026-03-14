@@ -1,0 +1,3 @@
+[submodule "src/datasets/morphomnist/morphomnist"]
+	path = src/datasets/morphomnist/morphomnist
+	url = https://github.com/dccastro/Morpho-MNIST

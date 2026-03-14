@@ -1,0 +1,27 @@
+model: cace
+dataset: morphomnist
+attributes: ["intensity", "width", "slant"]
+shortcuts: ["thickness"]
+transforms: null
+batch_size: 256
+ema: False
+lr: 1e-3
+max_epochs: 400
+patience: 10
+binarize: true
+use_aux: true
+feat_dim: 128
+shared_latent_dim: 3
+latent_per_concept: 0
+style_latent_dim: 16
+hidden_dim: 256
+kl_anneal_start: 0
+kl_anneal_end: 50
+seeds: [0, 1, 2, 3, 4]
+aux_weight_c: 1.0
+aux_weight_y: 1.0
+tau_anneal_start: 1.0
+tau_anneal_min: 0.1
+tau_anneal_decay: 0.05
+data_dir: data_confounded_s_by_it
+coefficients: [0.0, 0.3, 0.3, 0.4]
